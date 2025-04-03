@@ -77,8 +77,6 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('heart-attack-prediction/**/package-lock.json', 'heart-attack-prediction/**/yarn.lock') }}-
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
-      - name: Install Tailwind CSS
-        run: npm install tailwindcss postcss autoprefixer
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
       - name: Upload artifact
