@@ -114,7 +114,7 @@ export const defaultBarChartOptions: ChartOptions<'bar'> = {
       display: true,
       text: 'Data Analysis',
     },
-    // @ts-ignore
+    // @ts-expect-error
     animation: {
       easing: 'easeOutQuart',
     },
@@ -131,7 +131,7 @@ export const defaultPieChartOptions: ChartOptions<'pie'> = {
       display: true,
       text: 'Distribution',
     },
-    // @ts-ignore
+    // @ts-expect-error
     animation: {
       easing: 'easeOutQuart',
     },
