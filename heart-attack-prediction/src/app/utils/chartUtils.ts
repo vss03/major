@@ -114,7 +114,7 @@ export const defaultBarChartOptions: ChartOptions<'bar'> = {
       display: true,
       text: 'Data Analysis',
     },
-    // @ts-expect-error
+    // @ts-expect-error - Chart.js types are not updated
     animation: {
       easing: 'easeOutQuart',
     },
@@ -131,7 +131,7 @@ export const defaultPieChartOptions: ChartOptions<'pie'> = {
       display: true,
       text: 'Distribution',
     },
-    // @ts-expect-error
+    // @ts-expect-error - Chart.js types are not updated
     animation: {
       easing: 'easeOutQuart',
     },
