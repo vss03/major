@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'export',
   distDir: 'out',
+  images: {
+    unoptimized: true,
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve 'fs', 'child_process' etc on the client to prevent errors
