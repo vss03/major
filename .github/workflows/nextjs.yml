@@ -77,12 +77,35 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('heart-attack-prediction/**/package-lock.json', 'heart-attack-prediction/**/yarn.lock') }}-
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+      - name: Install necessary CSS packages
+        run: npm install -D css-loader style-loader postcss-loader autoprefixer
+      - name: Make sure global CSS is imported
+        run: |
+          if [ -f "src/app/layout.js" ] || [ -f "src/app/layout.tsx" ]; then
+            echo "Root layout file exists"
+            # Make sure the file imports CSS
+            if grep -q "import.*globals.css" "src/app/layout.tsx" || grep -q "import.*globals.css" "src/app/layout.js"; then
+              echo "CSS import found"
+            else
+              echo "Adding CSS import to layout file"
+              sed -i '1i import "./globals.css";' src/app/layout.tsx || sed -i '1i import "./globals.css";' src/app/layout.js
+            fi
+          else
+            echo "No root layout file found, creating one"
+            mkdir -p src/app
+            echo 'import "./globals.css"; export default function RootLayout({ children }) { return <html><body>{children}</body></html>; }' > src/app/layout.js
+          fi
+      - name: Create inline CSS loader
+        run: |
+          echo "module.exports = { plugins: { autoprefixer: {} } };" > postcss.config.js
       - name: Build Next.js app
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
       - name: Check directory structure
         run: ls -la
       - name: Check output directory
         run: ls -la out || echo "out directory not found"
+      - name: Check output CSS files
+        run: find out -name "*.css" || echo "No CSS files found"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
