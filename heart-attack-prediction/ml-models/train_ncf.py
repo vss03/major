@@ -1,126 +1,98 @@
 import pandas as pd
 import numpy as np
-import json
-import pickle
+from sklearn.preprocessing import LabelEncoder
 import tensorflow as tf
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from tensorflow.keras.layers import Input, Embedding, Flatten, Concatenate, Dense
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Embedding, Flatten, Dense, Concatenate, Dropout
-from tensorflow.keras.optimizers import Adam
-from sklearn.model_selection import train_test_split
 
-# Load the diet recommendation dataset
-diet_data = pd.read_csv('../public/data/Personalized_Diet_Recommendations.csv')
+# Load dataset
+df = pd.read_csv("../src/nutrition.csv")  # Corrected path for local execution
 
-# Extract features relevant to both heart attack and diet datasets
-# Common health indicators between the two datasets
-health_indicators = [
-    'Age', 'BMI', 'Cholesterol_Level',
-    'Blood_Pressure_Systolic', 'Blood_Pressure_Diastolic', 
-    'Sleep_Hours', 'Alcohol_Consumption', 'Smoking_Habit'
-]
+# Ensure necessary columns exist
+required_columns = ['name', 'serving_size', 'calories']
+assert all(col in df.columns for col in required_columns), "Dataset is missing required columns!"
 
-# Map Alcohol_Consumption and Smoking_Habit to binary values
-diet_data['Alcohol_Consumption'] = diet_data['Alcohol_Consumption'].map({'Yes': 1, 'No': 0})
-diet_data['Smoking_Habit'] = diet_data['Smoking_Habit'].map({'Yes': 1, 'No': 0})
+# Step 1: Filter Heart-Healthy Foods
+def is_heart_healthy(food_name):
+    unhealthy_keywords = [
+        'alcohol', 'beer', 'wine', 'whiskey', 'vodka', 'tequila',
+        'beef', 'pork', 'bacon', 'sausage', 'fried', 'burger',
+        'candy', 'cookies', 'cake', 'soda', 'syrup', 'sugar',
+        'butter', 'cheese', 'cream', 'mayonnaise',
+        'chips', 'crackers', 'fast food', 'processed'
+    ]
+    return not any(keyword in str(food_name).lower() for keyword in unhealthy_keywords)
 
-# Target variable: recommended meal plan
-meal_plans = diet_data['Recommended_Meal_Plan'].unique()
-diet_data['Meal_Plan_ID'] = LabelEncoder().fit_transform(diet_data['Recommended_Meal_Plan'])
+df = df[df['name'].apply(is_heart_healthy)]
+df = df.dropna()
 
-# User features
-user_features = diet_data[health_indicators]
+# Encode food names as numerical IDs
+food_encoder = LabelEncoder()
+df['food_id'] = food_encoder.fit_transform(df['name'])
 
-# Scale user features
-user_scaler = StandardScaler()
-user_features_scaled = user_scaler.fit_transform(user_features)
+# Assign random user IDs (simulate 1000 users)
+df['user_id'] = np.random.randint(0, 1000, df.shape[0])
+df['user_id'] -= df['user_id'].min()  # Normalize to start from 0
 
-# Save the scaler
-with open('../public/data/diet_scaler.pkl', 'wb') as f:
-    pickle.dump(user_scaler, f)
+# Implicit feedback (all 1s)
+df['rating'] = 1
 
-# Save mapping from Meal_Plan_ID to actual meal plan
-meal_plan_mapping = {
-    id: plan for id, plan in zip(
-        diet_data['Meal_Plan_ID'].unique(),
-        diet_data['Recommended_Meal_Plan'].unique()
-    )
-}
+# Ensure correct types
+df['user_id'] = df['user_id'].astype(int)
+df['food_id'] = df['food_id'].astype(int)
+df['rating'] = df['rating'].astype(float)
 
-with open('../public/data/meal_plan_mapping.json', 'w') as f:
-    json.dump(meal_plan_mapping, f)
+num_users = df['user_id'].max() + 1
+num_food_items = df['food_id'].max() + 1
 
-# Split the data
-X_train, X_test, y_train, y_test = train_test_split(
-    user_features_scaled, 
-    diet_data['Meal_Plan_ID'], 
-    test_size=0.2, 
-    random_state=42
-)
+# Build NCF Model
+user_input = Input(shape=(1,))
+food_input = Input(shape=(1,))
+user_embedding = Embedding(input_dim=num_users, output_dim=32)(user_input)
+food_embedding = Embedding(input_dim=num_food_items, output_dim=32)(food_input)
+user_vec = Flatten()(user_embedding)
+food_vec = Flatten()(food_embedding)
+concat = Concatenate()([user_vec, food_vec])
+fc1 = Dense(128, activation='relu')(concat)
+fc2 = Dense(64, activation='relu')(fc1)
+fc3 = Dense(32, activation='relu')(fc2)
+output = Dense(1, activation='sigmoid')(fc3)
+model = Model(inputs=[user_input, food_input], outputs=output)
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-# NCF Model
-n_factors = 16
-n_users = len(diet_data)
-n_meal_plans = len(meal_plans)
+# Prepare data
+user_ids = df['user_id'].values
+food_ids = df['food_id'].values
+labels = df['rating'].values.reshape(-1, 1)
 
-# User features input
-user_input = Input(shape=(len(health_indicators),), name='user_features')
+# Train model
+model.fit([user_ids, food_ids], labels, epochs=10, batch_size=16)
 
-# Dense layers for processing user features
-user_dense = Dense(32, activation='relu')(user_input)
-user_dense = Dropout(0.2)(user_dense)
-user_dense = Dense(16, activation='relu')(user_dense)
+# Recommendation function
+def recommend_foods(user_id, top_n=28):
+    food_ids = np.array(range(num_food_items))
+    scores = model.predict([np.array([user_id] * num_food_items), food_ids], verbose=0)
+    food_scores = list(zip(food_ids, scores.flatten()))
+    food_scores.sort(key=lambda x: x[1], reverse=True)
+    recommended_foods = [food_encoder.inverse_transform([food_id])[0] for food_id, _ in food_scores[:top_n]]
+    return recommended_foods
 
-# Output layer
-output = Dense(n_meal_plans, activation='softmax')(user_dense)
+def generate_meal_plan(user_id):
+    foods = recommend_foods(user_id, top_n=28)
+    meal_plan = {
+        f"Day {i+1}": {
+            "Breakfast": foods[i*4],
+            "Lunch": foods[i*4+1],
+            "Snack": foods[i*4+2],
+            "Dinner": foods[i*4+3]
+        }
+        for i in range(7)
+    }
+    return meal_plan
 
-# Create and compile the model
-ncf_model = Model(inputs=user_input, outputs=output)
-ncf_model.compile(
-    optimizer=Adam(learning_rate=0.001),
-    loss='sparse_categorical_crossentropy',
-    metrics=['accuracy']
-)
-
-# Train the model
-history = ncf_model.fit(
-    X_train, y_train,
-    validation_data=(X_test, y_test),
-    epochs=10,
-    batch_size=32
-)
-
-# Save the model
-ncf_model.save('../public/data/ncf_model')
-
-# Save the training history
-history_dict = {
-    'loss': [float(val) for val in history.history['loss']],
-    'val_loss': [float(val) for val in history.history['val_loss']],
-    'accuracy': [float(val) for val in history.history['accuracy']],
-    'val_accuracy': [float(val) for val in history.history['val_accuracy']]
-}
-
-with open('../public/data/ncf_history.json', 'w') as f:
-    json.dump(history_dict, f)
-
-# Map health indicators from heart attack dataset to diet dataset
-indicator_mapping = {
-    'Age': 'Age',
-    'BMI': 'BMI',
-    'Cholesterol': 'Cholesterol_Level',
-    'Systolic': 'Blood_Pressure_Systolic',
-    'Diastolic': 'Blood_Pressure_Diastolic',
-    'Sleep Hours Per Day': 'Sleep_Hours',
-    'Alcohol Consumption': 'Alcohol_Consumption',
-    'Smoking': 'Smoking_Habit'
-}
-
-with open('../public/data/indicator_mapping.json', 'w') as f:
-    json.dump(indicator_mapping, f)
-
-# Save column names for future prediction
-with open('../public/data/diet_columns.json', 'w') as f:
-    json.dump(health_indicators, f)
-
-print("NCF model training completed. Model and results saved.") 
+# Generate and print meal plan for user_id=10
+meal_plan = generate_meal_plan(10)
+for day, meals in meal_plan.items():
+    print(f"\n{day}")
+    for meal_type, food in meals.items():
+        print(f"  {meal_type}: {food}") 

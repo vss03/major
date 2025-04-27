@@ -3,6 +3,7 @@ import json
 import pickle
 import numpy as np
 import tensorflow as tf
+import argparse
 
 def preprocess_input(input_data, columns, scaler):
     """Preprocess the input data for heart attack prediction."""
@@ -72,25 +73,28 @@ def predict_heart_attack(input_data):
         results = json.load(f)
     
     # Preprocess input
+    print('DEBUG: Input data:', input_data)
     input_scaled = preprocess_input(input_data, columns, scaler)
+    print('DEBUG: Preprocessed features:', input_scaled)
     
     # Make predictions
     lr_prob = float(lr_model.predict_proba(input_scaled)[0, 1])
     rf_prob = float(rf_model.predict_proba(input_scaled)[0, 1])
     xgb_prob = float(xgb_model.predict_proba(input_scaled)[0, 1])
+    print('DEBUG: Model outputs:', {'lr': lr_prob, 'rf': rf_prob, 'xgb': xgb_prob})
     
-    # Ensemble prediction
+    # Ensemble prediction (weighted by model accuracy)
     top_models = results['ensemble']['top_models']
-    ensemble_prob = 0
-    for model in top_models:
-        if model == 'logistic_regression':
-            ensemble_prob += lr_prob
-        elif model == 'random_forest':
-            ensemble_prob += rf_prob
-        elif model == 'xgboost':
-            ensemble_prob += xgb_prob
-    
-    ensemble_prob /= len(top_models)
+    model_weights = {
+        'logistic_regression': results['logistic_regression']['accuracy'],
+        'random_forest': results['random_forest']['accuracy'],
+        'xgboost': results['xgboost']['accuracy']
+    }
+    total_weight = sum(model_weights[model] for model in top_models)
+    ensemble_prob = sum(
+        model_weights[model] * (lr_prob if model == 'logistic_regression' else rf_prob if model == 'random_forest' else xgb_prob)
+        for model in top_models
+    ) / total_weight if total_weight > 0 else (lr_prob + rf_prob + xgb_prob) / 3
     
     predictions = {
         'logistic_regression': {
@@ -110,7 +114,7 @@ def predict_heart_attack(input_data):
             'prediction': 1 if ensemble_prob >= 0.5 else 0
         }
     }
-    
+    print('DEBUG: Final predictions:', predictions)
     return predictions
 
 def predict_diet(input_data):
@@ -158,17 +162,25 @@ def predict_diet(input_data):
     return diet_recommendation
 
 if __name__ == "__main__":
-    # Get input data as JSON from command line argument
-    input_data = json.loads(sys.argv[1])
-    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', type=str, help='Path to input JSON file')
+    args, unknown = parser.parse_known_args()
+
+    if args.input:
+        with open(args.input, 'r') as f:
+            input_data = json.load(f)
+    else:
+        input_data = json.loads(sys.argv[1])
+
+    print('DEBUG: Input data:', input_data)
     # Make predictions
     heart_attack_predictions = predict_heart_attack(input_data)
     diet_recommendation = predict_diet(input_data)
-    
+
     # Return results
     results = {
         'heart_attack_predictions': heart_attack_predictions,
         'diet_recommendation': diet_recommendation
     }
-    
-    print(json.dumps(results)) 
+    print('DEBUG: Final results:', results)
+    print(json.dumps(results))

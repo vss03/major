@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 import './styles.css';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
@@ -42,7 +41,6 @@ export default function ModelComparison() {
             <div className="spinner"></div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -57,7 +55,6 @@ export default function ModelComparison() {
             <span>{error}</span>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -72,7 +69,6 @@ export default function ModelComparison() {
             <span>No model results available. Please train the models first.</span>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -167,7 +163,6 @@ export default function ModelComparison() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 } 

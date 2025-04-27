@@ -26,6 +26,7 @@ export interface DietRecommendation {
 export interface PredictionResults {
   heart_attack_predictions: HeartAttackPredictions;
   diet_recommendation: DietRecommendation;
+  meal_plan?: { [day: string]: { Breakfast: string; Lunch: string; Snack: string; Dinner: string } };
 }
 
 /**

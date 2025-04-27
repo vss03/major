@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart, registerables } from 'chart.js';
 import { getDatasetStats } from '../utils/pythonUtils';
@@ -42,7 +41,6 @@ export default function DataAnalysis() {
             <div className="spinner"></div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -57,7 +55,6 @@ export default function DataAnalysis() {
             <span>{error}</span>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -72,7 +69,6 @@ export default function DataAnalysis() {
             <span>No dataset statistics available. Please train the models first.</span>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -145,7 +141,6 @@ export default function DataAnalysis() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 } 

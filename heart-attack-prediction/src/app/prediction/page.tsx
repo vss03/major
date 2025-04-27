@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from 'react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { runPrediction } from '../utils/pythonUtils';
 import { PredictionResults } from '../utils/pythonUtils';
 import './styles.css';
@@ -35,9 +34,9 @@ const formFields = [
 // Group form fields into sections for a better UX
 const formSections = [
   {
-    title: "Basic Information",
+    title: "Please fill the following details",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
@@ -46,7 +45,7 @@ const formSections = [
   {
     title: "Medical History",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M5 5h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
       </svg>
     ),
@@ -55,7 +54,7 @@ const formSections = [
   {
     title: "Lifestyle",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
     ),
@@ -63,12 +62,35 @@ const formSections = [
   }
 ];
 
+// Helper: Generate a random 7-day meal plan if not provided by backend
+const healthyMeals = {
+  Breakfast: ["Oatmeal with fruit", "Greek yogurt parfait", "Whole grain toast & eggs", "Smoothie bowl", "Avocado toast", "Vegetable omelette", "Banana pancakes"],
+  Lunch: ["Grilled chicken salad", "Quinoa & veggies", "Lentil soup", "Brown rice & tofu", "Turkey sandwich", "Chickpea bowl", "Fish tacos"],
+  Snack: ["Mixed nuts", "Fruit salad", "Carrot sticks & hummus", "Granola bar", "Apple slices & peanut butter", "Rice cakes", "Yogurt"],
+  Dinner: ["Baked salmon & veggies", "Stir-fried tofu & broccoli", "Chicken & sweet potato", "Vegetable curry & rice", "Grilled shrimp & salad", "Stuffed bell peppers", "Pasta primavera"]
+};
+
+function getRandomMealPlan() {
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const plan: Record<string, {Breakfast: string, Lunch: string, Snack: string, Dinner: string}> = {};
+  days.forEach((day, i) => {
+    plan[day] = {
+      Breakfast: healthyMeals.Breakfast[Math.floor(Math.random() * healthyMeals.Breakfast.length)],
+      Lunch: healthyMeals.Lunch[Math.floor(Math.random() * healthyMeals.Lunch.length)],
+      Snack: healthyMeals.Snack[Math.floor(Math.random() * healthyMeals.Snack.length)],
+      Dinner: healthyMeals.Dinner[Math.floor(Math.random() * healthyMeals.Dinner.length)],
+    };
+  });
+  return plan;
+}
+
 export default function Prediction() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [results, setResults] = useState<PredictionResults | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentSection, setCurrentSection] = useState<number>(0);
+  const [mealPlan, setMealPlan] = useState<any>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -81,32 +103,13 @@ export default function Prediction() {
     setError(null);
     
     try {
-      // For demonstration purposes, we'll return mock data
-      // In a real application, we would call the API
-      // const results = await runPrediction(formData);
-      
-      // Mock data for demonstration
-      const mockResults: PredictionResults = {
-        heart_attack_predictions: {
-          logistic_regression: { probability: 0.32, prediction: 0 },
-          random_forest: { probability: 0.45, prediction: 0 },
-          xgboost: { probability: 0.38, prediction: 0 },
-          ensemble: { probability: 0.41, prediction: 0 }
-        },
-        diet_recommendation: {
-          predicted_meal_plan: 'Low-Carb Diet',
-          probability: 0.78,
-          top_recommendations: [
-            { meal_plan: 'Low-Carb Diet', probability: 0.78 },
-            { meal_plan: 'Balanced Diet', probability: 0.15 },
-            { meal_plan: 'High-Protein Diet', probability: 0.07 }
-          ]
-        }
-      };
-      
-      setResults(mockResults);
-      
-      // Scroll to the results
+      const results = await runPrediction(formData);
+      setResults(results);
+      let plan = results.meal_plan;
+      if (!plan || Object.keys(plan).length === 0) {
+        plan = getRandomMealPlan();
+      }
+      setMealPlan(plan);
       setTimeout(() => {
         const resultsElement = document.getElementById('results-section');
         if (resultsElement) {
@@ -171,6 +174,49 @@ export default function Prediction() {
 
   const getFormField = (fieldName: string) => {
     return formFields.find(field => field.name === fieldName);
+  };
+
+  const renderMealPlanTable = () => {
+    if (!mealPlan || Object.keys(mealPlan).length === 0) {
+      return (
+        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Recommended 7-Day Meal Plan</h2>
+          <p className="text-gray-600">No weekly meal plan available for your input.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="mt-8 max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+        <h2 className="text-2xl font-bold text-blue-700 mb-6 text-center">Recommended 7-Day Meal Plan</h2>
+        <div className="overflow-x-auto">
+          <table className="diet-plan-table">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Breakfast</th>
+                <th>Lunch</th>
+                <th>Snack</th>
+                <th>Dinner</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(mealPlan).map(([day, meals]: any, idx) => {
+                const m = meals as { Breakfast: string; Lunch: string; Snack: string; Dinner: string };
+                return (
+                  <tr key={day}>
+                    <td>{day}</td>
+                    <td>{m.Breakfast}</td>
+                    <td>{m.Lunch}</td>
+                    <td>{m.Snack}</td>
+                    <td>{m.Dinner}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -312,12 +358,7 @@ export default function Prediction() {
             ) : (
               <div id="results-section" className="space-y-8">
                 <div className="bg-white p-6 rounded-xl shadow-lg mb-8">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    Your Heart Health Results
-                  </h2>
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">Your Heart Health Results</h2>
                   <p className="text-gray-600 mb-8">
                     Based on your input, our AI model has analyzed your risk factors and generated the following assessment. Remember, this is not a medical diagnosis but an informational tool.
                   </p>
@@ -354,12 +395,7 @@ export default function Prediction() {
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-lg">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                    </svg>
-                    Personalized Diet Recommendations
-                  </h2>
+                  <h2 className="text-2xl font-bold mb-6 text-gray-800">Personalized Diet Recommendations</h2>
                   
                   <div className="p-6 bg-green-50 rounded-xl mb-6 border border-green-100">
                     <div className="flex flex-col md:flex-row justify-between md:items-center">
@@ -404,18 +440,15 @@ export default function Prediction() {
                     >
                       Start Over
                     </button>
-                    
-                    <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                      Download Report
-                    </button>
                   </div>
                 </div>
+
+                {renderMealPlanTable()}
               </div>
             )}
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 } 

@@ -188,4 +188,45 @@
     margin-left: auto;
     margin-right: auto;
   }
+}
+
+.diet-plan-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 1rem;
+}
+.diet-plan-table th, .diet-plan-table td {
+  padding: 1rem 1.25rem;
+  text-align: left;
+}
+.diet-plan-table th {
+  background: #e0e7ff;
+  color: #1e40af;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #c7d2fe;
+}
+.diet-plan-table tr:nth-child(even) {
+  background: #f3f4f6;
+}
+.diet-plan-table tr:nth-child(odd) {
+  background: #fff;
+}
+.diet-plan-table tr:hover {
+  background: #dbeafe;
+  transition: background 0.2s;
+}
+.diet-plan-table td {
+  font-size: 0.98rem;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+.diet-plan-table tr:last-child td {
+  border-bottom: none;
 } 
